@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using server.Data;
 
 namespace server.Controllers
 {
@@ -7,11 +8,17 @@ namespace server.Controllers
     [ApiController]
     public class EmployeeController : ControllerBase
     {
+        private readonly AppDbContext _context;
+        public EmployeeController(AppDbContext dbContext)
+        {
+            _context = dbContext;
+        }
+
+
         [HttpGet]
         public IActionResult Get()
         {
-            return Ok(new { message = "server is running" });
-
+            return Ok(_context.Employees.ToList());
         }
     }
 }
