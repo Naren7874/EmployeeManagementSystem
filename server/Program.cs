@@ -17,6 +17,19 @@ builder.Services.AddDbContext<AppDbContext>(opt => opt
 //add interface for dependency 
 builder.Services.AddScoped<IRepository<Department> ,Repository<Department>>();
 
+//add cors
+builder.Services.AddCors(
+    opt =>
+    {
+        opt.AddPolicy("AllowCrossOrigin", policy =>
+        {
+            policy.AllowAnyOrigin();
+            policy.AllowAnyHeader();
+            policy.AllowAnyMethod();
+
+        });
+    }
+    );
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -29,6 +42,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(); 
 }
 
+app.UseCors("AllowCrossOrigin");
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
