@@ -16,6 +16,7 @@ builder.Services.AddDbContext<AppDbContext>(opt => opt
 
 //add interface for dependency 
 builder.Services.AddScoped<IRepository<Department> ,Repository<Department>>();
+builder.Services.AddScoped<IRepository<Employee> ,Repository<Employee>>();
 
 //add cors
 builder.Services.AddCors(

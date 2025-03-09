@@ -49,5 +49,4 @@ namespace server.Data
           return(await appDbContext.SaveChangesAsync());
         }
     }
-
 }
