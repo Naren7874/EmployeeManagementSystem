@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using server.Data;
 using server.Models;
@@ -18,18 +19,21 @@ namespace server.Controllers
 
 
         [HttpGet]
+        [Authorize(Roles ="Admin")]
         public async Task<IActionResult> GetEmployeeList()
         {
             var list = await employeeRepository.GetAll();
             return Ok(list);
         }
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> GetEmployee([FromRoute] int id)
         {
             return Ok(await employeeRepository.FindByIdAsync(id));
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddEmployee([FromBody] Employee model)
         {
             await employeeRepository.AddAsync(model);
@@ -38,6 +42,7 @@ namespace server.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateEmployee([FromRoute] int id, [FromBody] Employee model)
         {
             var employee = await employeeRepository.FindByIdAsync(id);
@@ -57,12 +62,12 @@ namespace server.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteEmployee([FromRoute]int id)
         {
             await employeeRepository.DeleteAsync(id);
             await employeeRepository.SaveChangeAsync();
             return Ok();
         }
-
     }
 }

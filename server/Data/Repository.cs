@@ -1,4 +1,5 @@
 ﻿
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace server.Data
@@ -36,6 +37,11 @@ namespace server.Data
         {
             var list = await _dbSet.ToListAsync(); 
             return list ;
+        }
+        public async Task<List<T>> GetAll(Expression<Func<T,bool>> filter)
+        {
+            var list = await _dbSet.AsQueryable().Where(filter).ToListAsync();
+            return list;
         }
 
         public void  Update(T entity)

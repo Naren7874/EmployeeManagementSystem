@@ -14,11 +14,12 @@ namespace server.Models
         [ForeignKey(nameof(Department))]
         public int? DepartmentId { get; set; }
         public Department? Department { get; set; }
-
         public int Gender { get; set; }
         public DateOnly JoiningDate { get; set; }
         public DateOnly LastWorkingDate { get; set; }
         public DateOnly DateOfBirth { get; set; }
+        public int? UserId { get; set; }
+        public User? User { get; set; }
 
 
 
