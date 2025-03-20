@@ -39,7 +39,8 @@ namespace server.Controllers
             {
                 Id = user.Id,
                 Email= user.Email,
-                Token = token
+                Token = token,
+                Role = user.Role
             });
         }
 
