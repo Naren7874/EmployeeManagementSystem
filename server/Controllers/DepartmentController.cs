@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using server.Data;
 using server.Models;
@@ -15,6 +16,7 @@ namespace server.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddDepartment([FromBody] Department department)
         {
             await departmentRepository.AddAsync(department);
@@ -23,6 +25,7 @@ namespace server.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateDepartment([FromRoute] int id, [FromBody] Department model)
         {   
             var deparment = await departmentRepository.FindByIdAsync(id);
@@ -36,6 +39,7 @@ namespace server.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetAllDepartment()
         {
             var list = await departmentRepository.GetAll();
@@ -43,6 +47,7 @@ namespace server.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteDepartment([FromRoute] int id)
         {
             await departmentRepository.DeleteAsync(id);
