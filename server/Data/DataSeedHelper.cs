@@ -1,38 +1,37 @@
-﻿using System.Linq;
-using server.Data;
+﻿using server.Data;
 using server.Models;
+using server.Service;
 
-namespace Server.Data
+public class DataSeedHelper
 {
-    public class DataSeedHelper
+    private readonly AppDbContext dbContext;
+
+    public DataSeedHelper(AppDbContext dbContext)
     {
-        private readonly AppDbContext dbContext;
+        this.dbContext = dbContext;
+    }
 
-        public DataSeedHelper(AppDbContext dbContext)
+    public void InsertData()
+    {
+        if (!dbContext.Users.Any())
         {
-            this.dbContext = dbContext;
-        }
+            // Hash the password before saving
 
-        public void InsertData()
-        {
-            if (!dbContext.Users.Any())
+            _ = dbContext.Users.Add(new User()
             {
-                dbContext.Users.Add(new User()
-                {
-                    Email = "admin@test.com",
-                    Password = "123123", 
-                    Role = "Admin"
-                });
+                Email = "admin@test.com",
+                Password = PasswordHelper.HashPassword("123123"),
+                Role = "Admin"
+            });
 
-                dbContext.Users.Add(new User()
-                {
-                    Email = "emp1@test.com",
-                    Password = "123123",
-                    Role = "Employee"
-                });
+            dbContext.Users.Add(new User()
+            {
+                Email = "emp1@test.com",
+                Password = PasswordHelper.HashPassword("123123"),
+                Role = "Employee"
+            });
 
-                dbContext.SaveChanges();
-            }
+            dbContext.SaveChanges();
         }
     }
 }

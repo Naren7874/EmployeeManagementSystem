@@ -5,7 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using server.Data;
 using server.Models;
-using Server.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 

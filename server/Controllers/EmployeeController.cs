@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using server.Data;
 using server.Models;
+using server.Service;
 
 namespace server.Controllers
 {
@@ -11,10 +12,13 @@ namespace server.Controllers
     public class EmployeeController : ControllerBase
     {
         private readonly IRepository<Employee> employeeRepository;
+        private readonly IRepository<User> userRepository;
 
-        public EmployeeController(IRepository<Employee> employeeRepository)
+
+        public EmployeeController(IRepository<Employee> employeeRepository , IRepository<User> userRepository)
         {
             this.employeeRepository = employeeRepository;
+            this.userRepository = userRepository;
         }
 
 
@@ -36,6 +40,16 @@ namespace server.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddEmployee([FromBody] Employee model)
         {
+            var user = new User()
+            {
+                Email = model.Email,
+                Role = "Employee",
+                Password = PasswordHelper.HashPassword("abc@123")
+            };
+            // Add user to the database
+            await userRepository.AddAsync(user);
+            await userRepository.SaveChangeAsync();
+            model.UserId = user.Id;
             await employeeRepository.AddAsync(model);
             await employeeRepository.SaveChangeAsync();
             return Ok();
