@@ -97,7 +97,13 @@ namespace server.Controllers
                 employeeRepository.Update(employee);
                 await employeeRepository.SaveChangeAsync();
             }
-            return Ok(new { message = "profile updated successfully" });
+            return Ok(new ProfileDto()
+            {
+                Name = profileDto.Name,
+                Phone = profileDto.Phone,
+                Email = profileDto.Email,
+                Avatar = profileDto.Avatar,
+            });
         }
 
     }

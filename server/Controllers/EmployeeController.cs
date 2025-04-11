@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using server.Data;
@@ -24,10 +25,28 @@ namespace server.Controllers
 
         [HttpGet]
         [Authorize(Roles ="Admin")]
-        public async Task<IActionResult> GetEmployeeList()
+        public async Task<IActionResult> GetEmployeeList([FromQuery] SearchQuery searchQuery)
         {
-            var list = await employeeRepository.GetAll();
-            return Ok(list);
+            List<Employee> filteredData;
+            if (string.IsNullOrEmpty(searchQuery.Search))
+            {
+                filteredData = await employeeRepository.GetAll(); 
+            }
+            else
+            {
+            filteredData = await employeeRepository.GetAll(x =>
+            x.Name.Contains(searchQuery.Search) ||
+            x.Phone.Contains(searchQuery.Search) ||
+            x.Email.Contains(searchQuery.Search)
+            );
+            }
+            if (searchQuery.PageIndex.HasValue)
+            {
+                int x = (int)(searchQuery.PageIndex * searchQuery.PageSize.Value);
+                int y = (int)(searchQuery.PageSize);
+                filteredData = filteredData.Skip(x).Take(y).ToList();
+            }
+            return Ok(filteredData);
         }
         [HttpGet("{id}")]
         [Authorize]
