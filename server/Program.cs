@@ -43,12 +43,13 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("AllowCrossOrigin", policy =>
     {
-        policy.AllowAnyOrigin();
-        policy.AllowAnyHeader();
-        policy.AllowAnyMethod();
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
-
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -68,10 +69,9 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-app.UseCors("AllowCrossOrigin");
+app.UseCors("AllowCrossOrigin"); 
 app.UseHttpsRedirection();
-app.UseAuthentication();
+app.UseAuthentication();         
 app.UseAuthorization();
 app.MapControllers();
-
 app.Run();

@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { SidebarTrigger } from "./components/ui/sidebar";
 import { AppSidebar } from "./components/app-sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -8,20 +8,49 @@ import EmployeeList from "./pages/EmployeeList";
 import Leaves from "./pages/Leaves";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login.jsx";
-import PrivateRoute from "./components/PrivateRoute.jsx";
 import { ModeToggle } from "./components/mode-toggle";
 import Profile from "./pages/Profile";
+import { Toaster } from "react-hot-toast"; // Import the Toaster component
 
 function App() {
   const location = useLocation();
-  const isLogin = location.pathname === "/login";
+  const isLoginPage = location.pathname === "/login";
+
+  // Check authentication status
+  const isAuthenticated = () => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    return !!token && !!user;
+  };
+
+  // Redirect logic for protected routes
+  const ProtectedElement = ({ children }) => {
+    return isAuthenticated() ? children : <Navigate to="/login" replace />;
+  };
+
+  // Hide sidebar and header on login page
+  const showAppLayout = !isLoginPage && isAuthenticated();
 
   return (
     <div className="flex min-h-screen w-full">
-      {!isLogin && <AppSidebar />}
+      {/* Add Toaster component here - position it outside your main layout */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "hsl(var(--background))",
+            color: "hsl(var(--foreground))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "calc(var(--radius) - 2px)",
+          }
+        }}
+      />
+
+      {showAppLayout && <AppSidebar />}
 
       <main className="flex-1 p-4 transition-all">
-        {!isLogin && (
+        {showAppLayout && (
           <div className="flex items-center justify-between mb-4">
             <SidebarTrigger />
             <ModeToggle />
@@ -29,54 +58,59 @@ function App() {
         )}
 
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={
+              isAuthenticated() ? <Navigate to="/" replace /> : <Login />
+            }
+          />
           <Route
             path="/"
             element={
-              <PrivateRoute>
+              <ProtectedElement>
                 <Dashboard />
-              </PrivateRoute>
+              </ProtectedElement>
             }
           />
           <Route
             path="/departments"
             element={
-              <PrivateRoute>
+              <ProtectedElement>
                 <Departments />
-              </PrivateRoute>
+              </ProtectedElement>
             }
           />
           <Route
             path="/employees"
             element={
-              <PrivateRoute>
+              <ProtectedElement>
                 <EmployeeList />
-              </PrivateRoute>
+              </ProtectedElement>
             }
           />
           <Route
             path="/leaves"
             element={
-              <PrivateRoute>
+              <ProtectedElement>
                 <Leaves />
-              </PrivateRoute>
+              </ProtectedElement>
             }
           />
           <Route
             path="/settings"
             element={
-              <PrivateRoute>
+              <ProtectedElement>
                 <Settings />
-              </PrivateRoute>
+              </ProtectedElement>
             }
           />
           <Route
-          path="/profile"
-          element={
-            <PrivateRoute>
-              <Profile/>
-            </PrivateRoute>
-          } 
+            path="/profile"
+            element={
+              <ProtectedElement>
+                <Profile />
+              </ProtectedElement>
+            }
           />
         </Routes>
       </main>

@@ -39,6 +39,7 @@ namespace server.Controllers
                 return new BadRequestObjectResult(new { message = "invelid cradentials" });
             }
             var token = GenerateToken(user.Email, user.Role);
+
             return Ok(new AuthTokenDto()
             {
                 Id = user.Id,

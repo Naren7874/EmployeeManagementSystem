@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Building,
@@ -7,10 +8,7 @@ import {
   Settings,
   User,
   LogOut,
-  Bell,
-  CreditCard,
 } from "lucide-react";
-
 import {
   Sidebar,
   SidebarContent,
@@ -21,7 +19,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -29,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import toast from "react-hot-toast";
 
 const menuItems = [
   {
@@ -59,6 +57,44 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
+  const navigate = useNavigate();
+  const [userData, setUserData] = useState(null);
+
+  // Load user data on component mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUserData(JSON.parse(storedUser));
+      } catch (error) {
+        console.error("Failed to parse user data:", error);
+        toast.error("Failed to load user data");
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    const toastId = toast.loading("Logging out...");
+
+    // Simulate API call delay (remove if you have actual logout API)
+    setTimeout(() => {
+      try {
+        // Clear user data from storage
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        // Redirect to login page
+        navigate("/login");
+
+        // Show success message
+        toast.success("Logged out successfully", { id: toastId });
+      } catch (error) {
+        console.error("Logout failed:", error);
+        toast.error("Failed to logout. Please try again.", { id: toastId });
+      }
+    }, 800); // Remove this timeout if you have actual API call
+  };
+
   return (
     <Sidebar className="border-r border-border bg-background flex flex-col justify-between">
       <SidebarContent>
@@ -86,32 +122,53 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Dummy Profile Section */}
-
+      {/* User Profile Section */}
       <div className="p-4 border-t border-border">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent transition">
+            <button
+              className="w-full flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent transition"
+              aria-label="User menu"
+            >
               <Avatar className="h-9 w-9">
-                <AvatarImage src="https://github.com/shadcn.png" />
-                <AvatarFallback>NM</AvatarFallback>
+                <AvatarImage
+                  src={userData?.avatarUrl || "https://github.com/shadcn.png"}
+                  alt="User avatar"
+                />
+                <AvatarFallback>
+                  {userData?.name
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase() || "US"}
+                </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col items-start text-left">
-                <p className="text-sm font-medium">naren</p>
-                <p className="text-xs text-muted-foreground">naren@123.com</p>
+              <div className="flex flex-col items-start text-left overflow-hidden">
+                <p className="text-sm font-medium truncate max-w-[160px]">
+                  {userData?.name || "User"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                  {userData?.email || "user@example.com"}
+                </p>
               </div>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56">
+          <DropdownMenuContent className="w-56" align="end" side="top">
             <DropdownMenuItem asChild>
-              <Link to="/profile" className="flex items-center w-full">
+              <Link
+                to="/profile"
+                className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
                 <User className="mr-2 h-4 w-4" />
-                Account
+                <span>Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20"
+              onClick={handleLogout}
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              Log out
+              <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

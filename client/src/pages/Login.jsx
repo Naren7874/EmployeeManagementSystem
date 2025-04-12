@@ -4,18 +4,54 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import apiReq from "@/lib/apiReq";
+import toast from "react-hot-toast";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const email = e.target.email.value;
-    const password = e.target.password.value;
+    setIsLoading(true);
+    const toastId = toast.loading("Signing in...");
 
-    if (email && password) {
-      localStorage.setItem("token", "your-token");
-      navigate("/");
+    const formData = {
+      email: e.target.email.value,
+      password: e.target.password.value,
+    };
+
+    try {
+      const response = await apiReq.post("/Auth/login", formData);
+
+      // Store the token and user data
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: response.data.id,
+          email: response.data.email,
+          role: response.data.role,
+        })
+      );
+
+      toast.success("Login successful!", {
+        id: toastId,
+        duration: 2000,
+      });
+
+      // Redirect to dashboard after a brief delay
+      setTimeout(() => navigate("/"), 1000);
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Login failed. Please try again.";
+      toast.error(errorMessage, {
+        id: toastId,
+        duration: 4000,
+      });
+      console.error("Login failed:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -37,6 +73,7 @@ export default function Login() {
                 type="email"
                 placeholder="you@example.com"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-2">
@@ -47,10 +84,11 @@ export default function Login() {
                 type="password"
                 placeholder="••••••••"
                 required
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Login"}
             </Button>
           </form>
         </CardContent>
