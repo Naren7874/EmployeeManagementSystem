@@ -14,10 +14,10 @@ const Profile = () => {
     email: "",
     phone: "",
     password: "",
-    avatar: null,
   });
   const [previewAvatar, setPreviewAvatar] = useState("");
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
 
   // Load user data on component mount
   useEffect(() => {
@@ -25,14 +25,27 @@ const Profile = () => {
       try {
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
-          const user = JSON.parse(storedUser);
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+
+          // Set email from localStorage
           setFormData((prev) => ({
             ...prev,
-            name: user.name || "",
-            email: user.email || "",
-            phone: user.phone || "",
+            email: userData.email || "",
           }));
-          setPreviewAvatar(user.avatarUrl || "https://github.com/shadcn.png");
+
+          // Fetch additional user details from API
+          const response = await apiReq.get(`/Auth/user-profile`);
+          if (response.data) {
+            setFormData((prev) => ({
+              ...prev,
+              name: response.data.name || "",
+              phone: response.data.phone || "",
+            }));
+            setPreviewAvatar(
+              response.data.avatar || "https://github.com/shadcn.png"
+            );
+          }
         }
       } catch (error) {
         toast.error("Failed to load user data");
@@ -64,11 +77,6 @@ const Profile = () => {
         return;
       }
 
-      setFormData((prev) => ({
-        ...prev,
-        avatar: file,
-      }));
-
       // Create preview URL
       const reader = new FileReader();
       reader.onload = () => {
@@ -84,35 +92,27 @@ const Profile = () => {
     const toastId = toast.loading("Updating profile...");
 
     try {
-      const formDataToSend = new FormData();
-
-      // Append only changed fields
-      if (formData.name) formDataToSend.append("name", formData.name);
-      if (formData.email) formDataToSend.append("email", formData.email);
-      if (formData.phone) formDataToSend.append("phone", formData.phone);
-      if (formData.password)
-        formDataToSend.append("password", formData.password);
-      if (formData.avatar) formDataToSend.append("avatar", formData.avatar);
-
-      const response = await apiReq.put(
-        "/Auth/profile-update",
-        formDataToSend,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      // Update local storage with new data
-      const updatedUser = {
-        ...JSON.parse(localStorage.getItem("user")),
+      const payload = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        avatarUrl: previewAvatar,
+        password: formData.password || null,
+        avatar: previewAvatar.includes("base64") ? previewAvatar : null,
       };
+
+      const response = await apiReq.put("/Auth/profile-update", payload);
+
+      // Update local storage with all user information
+      const updatedUser = {
+        ...user,
+        email: formData.email,
+        name: formData.name,
+        phone: formData.phone,
+        avatar: previewAvatar.includes("base64") ? previewAvatar : user.avatar,
+      };
+
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
 
       toast.success("Profile updated successfully", { id: toastId });
     } catch (error) {
@@ -124,6 +124,10 @@ const Profile = () => {
       setLoading(false);
     }
   };
+
+  if (!user) {
+    return <div className="p-6 max-w-4xl mx-auto">Loading profile...</div>;
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -146,7 +150,8 @@ const Profile = () => {
                 {formData.name
                   .split(" ")
                   .map((n) => n[0])
-                  .join("") || "US"}
+                  .join("")
+                  .toUpperCase() || "US"}
               </AvatarFallback>
             </Avatar>
             <div>
@@ -194,6 +199,7 @@ const Profile = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="john@example.com"
+                required
               />
             </div>
 

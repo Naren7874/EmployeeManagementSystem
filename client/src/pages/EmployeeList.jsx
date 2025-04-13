@@ -18,22 +18,48 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Plus, Search } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import apiReq from "@/lib/apiReq";
 import toast from "react-hot-toast";
-import EmployeeForm from "./EmployeeForm.jsx"; // You'll need to create this component
+import EmployeeForm from "./EmployeeForm.jsx";
 
 const EmployeeList = () => {
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: 5,
     totalCount: 0,
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState(null);
+  const [employeeDetails, setEmployeeDetails] = useState(null);
   const navigate = useNavigate();
+
+  // Fetch departments
+  const fetchDepartments = async () => {
+    try {
+      const response = await apiReq.get("/Department");
+      setDepartments(response.data);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
+
+  // Get department name by ID
+  const getDepartmentName = (departmentId) => {
+    const department = departments.find((d) => d.id === departmentId);
+    return department ? department.name : "-";
+  };
 
   const fetchEmployees = async () => {
     try {
@@ -46,8 +72,6 @@ const EmployeeList = () => {
         },
       });
       setEmployees(response.data);
-      // If your backend returns total count, use that instead
-      // setPagination(prev => ({...prev, totalCount: response.data.totalCount}));
     } catch (error) {
       toast.error("Failed to fetch employees");
       console.error("Error fetching employees:", error);
@@ -56,13 +80,26 @@ const EmployeeList = () => {
     }
   };
 
+  // Fetch full employee details
+  const fetchEmployeeDetails = async (id) => {
+    try {
+      const response = await apiReq.get(`/Employee/${id}`);
+      setEmployeeDetails(response.data);
+      setIsViewDialogOpen(true);
+    } catch (error) {
+      toast.error("Failed to fetch employee details");
+      console.error("Error fetching employee details:", error);
+    }
+  };
+
   useEffect(() => {
+    fetchDepartments();
     fetchEmployees();
   }, [searchQuery, pagination.pageIndex]);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setPagination((prev) => ({ ...prev, pageIndex: 0 })); // Reset to first page on new search
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   };
 
   const handleAddEmployee = () => {
@@ -73,6 +110,11 @@ const EmployeeList = () => {
   const handleEditEmployee = (employee) => {
     setCurrentEmployee(employee);
     setIsFormOpen(true);
+  };
+
+  const handleViewEmployee = (employee) => {
+    setCurrentEmployee(employee);
+    fetchEmployeeDetails(employee.id);
   };
 
   const handleDeleteEmployee = async (id) => {
@@ -109,6 +151,18 @@ const EmployeeList = () => {
       toast.error(error.response?.data?.message || "Operation failed");
       console.error("Error saving employee:", error);
     }
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  // Get gender text
+  const getGenderText = (genderValue) => {
+    return genderValue === 1 ? "Male" : genderValue === 2 ? "Female" : "Other";
   };
 
   return (
@@ -164,7 +218,11 @@ const EmployeeList = () => {
                     <TableCell>{employee.email}</TableCell>
                     <TableCell>{employee.phone}</TableCell>
                     <TableCell>{employee.jobTitle}</TableCell>
-                    <TableCell>{employee.department?.name || "-"}</TableCell>
+                    <TableCell>
+                      {employee.departmentId
+                        ? getDepartmentName(employee.departmentId)
+                        : "-"}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -174,9 +232,7 @@ const EmployeeList = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            onClick={() =>
-                              navigate(`/employees/${employee.id}`)
-                            }
+                            onClick={() => handleViewEmployee(employee)}
                           >
                             View
                           </DropdownMenuItem>
@@ -215,9 +271,7 @@ const EmployeeList = () => {
             >
               Previous
             </Button>
-            <span className="text-sm">
-              Page {pagination.pageIndex + 1} {/* Display as 1-based */}
-            </span>
+            <span className="text-sm">Page {pagination.pageIndex + 1}</span>
             <Button
               variant="outline"
               size="sm"
@@ -239,10 +293,92 @@ const EmployeeList = () => {
       {isFormOpen && (
         <EmployeeForm
           employee={currentEmployee}
+          departments={departments}
           onClose={() => setIsFormOpen(false)}
           onSubmit={handleFormSubmit}
         />
       )}
+
+      {/* Employee View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>Employee Details</DialogTitle>
+          </DialogHeader>
+          {employeeDetails && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Name
+                  </h4>
+                  <p>{employeeDetails.name}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Email
+                  </h4>
+                  <p>{employeeDetails.email}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Phone
+                  </h4>
+                  <p>{employeeDetails.phone}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Job Title
+                  </h4>
+                  <p>{employeeDetails.jobTitle}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Department
+                  </h4>
+                  <p>{getDepartmentName(employeeDetails.departmentId)}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Gender
+                  </h4>
+                  <p>{getGenderText(employeeDetails.gender)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Date of Birth
+                  </h4>
+                  <p>{formatDate(employeeDetails.dateOfBirth)}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Joining Date
+                  </h4>
+                  <p>{formatDate(employeeDetails.joiningDate)}</p>
+                </div>
+              </div>
+
+              {employeeDetails.lastWorkingDate && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Last Working Date
+                  </h4>
+                  <p>{formatDate(employeeDetails.lastWorkingDate)}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

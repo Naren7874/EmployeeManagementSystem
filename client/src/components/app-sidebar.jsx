@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import apiReq from "@/lib/apiReq";
 import toast from "react-hot-toast";
 
 const menuItems = [
@@ -59,41 +60,87 @@ const menuItems = [
 export function AppSidebar() {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load user data on component mount
+  // Load user data from localStorage or API
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
+    const loadUserData = async () => {
       try {
-        setUserData(JSON.parse(storedUser));
+        // First try to get from localStorage
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUserData(parsedUser);
+
+          // If basic info is missing, fetch from API
+          if (!parsedUser.name || !parsedUser.avatarUrl) {
+            const response = await apiReq.get("/Auth/user-profile");
+            if (response.data) {
+              const updatedUser = {
+                ...parsedUser,
+                name: response.data.name || parsedUser.name,
+                avatarUrl: response.data.avatar || parsedUser.avatarUrl,
+              };
+              setUserData(updatedUser);
+              localStorage.setItem("user", JSON.stringify(updatedUser));
+            }
+          }
+        } else {
+          // Fallback to API if no localStorage data
+          const response = await apiReq.get("/Auth/user-profile");
+          if (response.data) {
+            setUserData(response.data);
+            localStorage.setItem("user", JSON.stringify(response.data));
+          }
+        }
       } catch (error) {
-        console.error("Failed to parse user data:", error);
-        toast.error("Failed to load user data");
+        console.error("Failed to load user data:", error);
+        toast.error("Failed to load user profile");
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    loadUserData();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const toastId = toast.loading("Logging out...");
 
-    // Simulate API call delay (remove if you have actual logout API)
-    setTimeout(() => {
-      try {
-        // Clear user data from storage
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+    try {
+      // Optional: Call logout API if you have one
+      // await apiReq.post("/Auth/logout");
 
-        // Redirect to login page
-        navigate("/login");
+      // Clear user data from storage
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
 
-        // Show success message
-        toast.success("Logged out successfully", { id: toastId });
-      } catch (error) {
-        console.error("Logout failed:", error);
-        toast.error("Failed to logout. Please try again.", { id: toastId });
-      }
-    }, 800); // Remove this timeout if you have actual API call
+      // Redirect to login page
+      navigate("/login");
+
+      toast.success("Logged out successfully", { id: toastId });
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Failed to logout. Please try again.", { id: toastId });
+    }
   };
+
+  if (loading) {
+    return (
+      <Sidebar className="border-r border-border bg-background flex flex-col justify-between">
+        {/* Loading skeleton or placeholder */}
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-3 w-32 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </Sidebar>
+    );
+  }
 
   return (
     <Sidebar className="border-r border-border bg-background flex flex-col justify-between">
@@ -132,7 +179,7 @@ export function AppSidebar() {
             >
               <Avatar className="h-9 w-9">
                 <AvatarImage
-                  src={userData?.avatarUrl || "https://github.com/shadcn.png"}
+                  src={userData?.avatar || "https://github.com/shadcn.png"}
                   alt="User avatar"
                 />
                 <AvatarFallback>

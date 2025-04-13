@@ -107,5 +107,31 @@ namespace server.Controllers
             });
         }
 
+        [Authorize]
+        [HttpGet("user-profile")]
+        public async Task<IActionResult> GetUserProfile()
+        {
+            var currEmail = User.FindFirstValue(ClaimTypes.Name);
+            if (currEmail == null)
+            {
+                return BadRequest(new { message = "User not found" });
+            }
+
+            var user = (await userRepository.GetAll(x => x.Email == currEmail)).FirstOrDefault();
+            if (user == null)
+            {
+                return BadRequest(new { message = "User not found" });
+            }
+
+            var employee = (await employeeRepository.GetAll(x => x.UserId == user.Id)).FirstOrDefault();
+
+            return Ok(new ProfileDto()
+            {
+                Name = employee?.Name,
+                Phone = employee?.Phone,
+                Email = user.Email,
+                Avatar = user.Avatar
+            });
+        }
     }
 }
