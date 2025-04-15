@@ -18,7 +18,6 @@ namespace server.Migrations
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)");
         }
-
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
