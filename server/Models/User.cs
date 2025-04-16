@@ -7,5 +7,7 @@
         public string Password { get; set; }
         public string Role { get; set; }
         public string? Avatar { get; set; } = null;
+        public ICollection<Leave> Leaves { get; set; }
+
     }
 }

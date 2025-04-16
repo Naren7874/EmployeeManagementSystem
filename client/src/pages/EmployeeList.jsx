@@ -36,7 +36,7 @@ const EmployeeList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 5,
+    pageSize: 2,
     totalCount: 0,
   });
   const [isFormOpen, setIsFormOpen] = useState(false);

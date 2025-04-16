@@ -16,7 +16,7 @@ namespace server.Models
         public Department? Department { get; set; }
         public int Gender { get; set; }
         public DateOnly JoiningDate { get; set; }
-        public DateOnly? LastWorkingDate { get; set; }
+        public DateOnly LastWorkingDate { get; set; }
         public DateOnly DateOfBirth { get; set; }
         [ForeignKey(nameof(User))]
         public int? UserId { get; set; }

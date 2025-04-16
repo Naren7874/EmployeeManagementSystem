@@ -20,6 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(opt => opt
 builder.Services.AddScoped<IRepository<Department>, Repository<Department>>();
 builder.Services.AddScoped<IRepository<Employee>, Repository<Employee>>();
 builder.Services.AddScoped<IRepository<User>, Repository<User>>();
+builder.Services.AddScoped<IRepository<Leave>, Repository<Leave>>();
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(opt =>

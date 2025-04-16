@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Check, X } from "lucide-react";
+import { Plus, Calendar, Check, X, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -26,105 +27,157 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
-
-// Dummy leave data
-const dummyLeaves = [
-  {
-    id: 1,
-    employeeName: "John Doe",
-    leaveType: "Sick Leave",
-    startDate: "2023-10-15",
-    endDate: "2023-10-17",
-    reason: "Flu",
-    status: "Approved",
-    userId: 1,
-  },
-  {
-    id: 2,
-    employeeName: "Jane Smith",
-    leaveType: "Vacation",
-    startDate: "2023-11-01",
-    endDate: "2023-11-07",
-    reason: "Family trip",
-    status: "Pending",
-    userId: 2,
-  },
-  {
-    id: 3,
-    employeeName: "Mike Johnson",
-    leaveType: "Personal Leave",
-    startDate: "2023-10-20",
-    endDate: "2023-10-20",
-    reason: "Doctor appointment",
-    status: "Rejected",
-    userId: 3,
-  },
-];
+import { Textarea } from "@/components/ui/textarea";
+import { format, parseISO } from "date-fns";
+import apiReq from "@/lib/apiReq";
+import toast from "react-hot-toast";
 
 const Leaves = () => {
-  const navigate = useNavigate();
-  const [leaves, setLeaves] = useState(dummyLeaves);
+  const [leaves, setLeaves] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [formData, setFormData] = useState({
     leaveType: "",
     startDate: "",
     endDate: "",
     reason: "",
+    employeeId: null,
+  });
+  const [statusForm, setStatusForm] = useState({
+    status: "Approved",
+    comments: "",
   });
 
   // Get user from localStorage
   const user = JSON.parse(localStorage.getItem("user") || { role: "Employee" });
   const isAdmin = user.role === "Admin";
 
-  // Filter leaves for employees
-  const userLeaves = isAdmin
-    ? leaves
-    : leaves.filter((leave) => leave.userId === user.id);
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchLeaves();
+    fetchLeaveTypes();
+    if (isAdmin) {
+      fetchEmployees();
+    }
+  }, []);
 
-  const leaveTypes = [
-    "Sick Leave",
-    "Vacation",
-    "Personal Leave",
-    "Maternity/Paternity",
-    "Bereavement",
-  ];
-
-  const statusColors = {
-    Approved: "bg-green-500",
-    Rejected: "bg-red-500",
-    Pending: "bg-yellow-500",
+  const fetchLeaves = async () => {
+    try {
+      setIsLoading(true);
+      const endpoint = isAdmin ? "/leave" : "/leave/my";
+      const response = await apiReq.get(endpoint);
+      setLeaves(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch leaves");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const fetchLeaveTypes = async () => {
+    try {
+      const response = await apiReq.get("/leave/types");
+      setLeaveTypes(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch leave types");
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await apiReq.get("/employee");
+      setEmployees(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch employees");
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newLeave = {
-      id: leaves.length + 1,
-      employeeName: user.name || "Current User",
-      ...formData,
-      status: "Pending",
-      userId: user.id || 1,
-    };
-    setLeaves([...leaves, newLeave]);
-    setIsDialogOpen(false);
+    const toastId = toast.loading("Submitting leave request...");
+    try {
+      const payload = {
+        ...formData,
+        startDate: new Date(formData.startDate).toISOString(),
+        endDate: new Date(formData.endDate).toISOString(),
+      };
+
+      if (!isAdmin) {
+        delete payload.employeeId; // For regular employees, use their own ID
+      }
+
+      await apiReq.post("/leave", payload);
+      toast.success("Leave application submitted successfully", { id: toastId });
+      setIsDialogOpen(false);
+      fetchLeaves();
+      resetForm();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to submit leave",
+        { id: toastId }
+      );
+    }
+  };
+
+  const handleStatusUpdate = async () => {
+    const toastId = toast.loading("Updating leave status...");
+    try {
+      await apiReq.put(`/leave/${selectedLeave.id}/status`, {
+        status: statusForm.status,
+        comments: statusForm.comments,
+      });
+      toast.success("Leave status updated successfully", { id: toastId });
+      setIsStatusDialogOpen(false);
+      fetchLeaves();
+      resetStatusForm();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to update leave status",
+        { id: toastId }
+      );
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
       leaveType: "",
       startDate: "",
       endDate: "",
       reason: "",
+      employeeId: null,
     });
   };
 
-  const handleStatusChange = (id, status) => {
-    setLeaves(
-      leaves.map((leave) => (leave.id === id ? { ...leave, status } : leave))
-    );
+  const resetStatusForm = () => {
+    setStatusForm({
+      status: "Approved",
+      comments: "",
+    });
+    setSelectedLeave(null);
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return format(parseISO(dateString), "MMM dd, yyyy");
+  };
+
+  const openStatusDialog = (leave, status) => {
+    setSelectedLeave(leave);
+    setStatusForm({
+      status: status,
+      comments: "",
+    });
+    setIsStatusDialogOpen(true);
+  };
+
+  const statusColors = {
+    Approved: "bg-green-500 hover:bg-green-600",
+    Rejected: "bg-red-500 hover:bg-red-600",
+    Pending: "bg-yellow-500 hover:bg-yellow-600",
   };
 
   return (
@@ -134,79 +187,91 @@ const Leaves = () => {
           <CardTitle className="text-lg font-medium">
             {isAdmin ? "Leave Management" : "My Leaves"}
           </CardTitle>
-          {!isAdmin && (
-            <Button size="sm" onClick={() => setIsDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Apply for Leave
+          <div className="flex space-x-2">
+            <Button size="sm" variant="outline" onClick={fetchLeaves}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
             </Button>
-          )}
+            {!isAdmin && (
+              <Button size="sm" onClick={() => setIsDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Apply for Leave
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {isAdmin && <TableHead>Employee</TableHead>}
-                <TableHead>Leave Type</TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>End Date</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Status</TableHead>
-                {isAdmin && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {userLeaves.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center">
-                    No leaves found
-                  </TableCell>
+                  {isAdmin && <TableHead>Employee</TableHead>}
+                  <TableHead>Leave Type</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Applied On</TableHead>
+                  {isAdmin && <TableHead>Actions</TableHead>}
                 </TableRow>
-              ) : (
-                userLeaves.map((leave) => (
-                  <TableRow key={leave.id}>
-                    {isAdmin && <TableCell>{leave.employeeName}</TableCell>}
-                    <TableCell>{leave.leaveType}</TableCell>
-                    <TableCell>{formatDate(leave.startDate)}</TableCell>
-                    <TableCell>{formatDate(leave.endDate)}</TableCell>
-                    <TableCell>{leave.reason}</TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[leave.status]}>
-                        {leave.status}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {leaves.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center">
+                      No leaves found
                     </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        {leave.status === "Pending" && (
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                handleStatusChange(leave.id, "Approved")
-                              }
-                            >
-                              <Check className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                handleStatusChange(leave.id, "Rejected")
-                              }
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    )}
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  leaves.map((leave) => (
+                    <TableRow key={leave.id}>
+                      {isAdmin && <TableCell>{leave.employeeName}</TableCell>}
+                      <TableCell>{leave.leaveType}</TableCell>
+                      <TableCell>{formatDate(leave.startDate)}</TableCell>
+                      <TableCell>{formatDate(leave.endDate)}</TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {leave.reason}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[leave.status]}>
+                          {leave.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(leave.appliedOn)}</TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          {leave.status === "Pending" && (
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openStatusDialog(leave, "Approved")}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openStatusDialog(leave, "Rejected")}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -215,10 +280,36 @@ const Leaves = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Apply for Leave</DialogTitle>
+            <DialogDescription>
+              Fill out the form to submit a new leave request
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="employee">Employee</Label>
+                <Select
+                  value={formData.employeeId || ""}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, employeeId: parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id.toString()}>
+                        {employee.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="leaveType">Leave Type</Label>
+              <Label htmlFor="leaveType">Leave Type *</Label>
               <Select
                 value={formData.leaveType}
                 onValueChange={(value) =>
@@ -241,7 +332,7 @@ const Leaves = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date</Label>
+                <Label htmlFor="startDate">Start Date *</Label>
                 <Input
                   type="date"
                   id="startDate"
@@ -250,11 +341,11 @@ const Leaves = () => {
                     setFormData({ ...formData, startDate: e.target.value })
                   }
                   required
-                  className=" dark:text-white text-black [color-scheme:auto] dark:[&::-webkit-calendar-picker-indicator]:invert"
+                  min={new Date().toISOString().split('T')[0]}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endDate">End Date</Label>
+                <Label htmlFor="endDate">End Date *</Label>
                 <Input
                   type="date"
                   id="endDate"
@@ -263,20 +354,21 @@ const Leaves = () => {
                     setFormData({ ...formData, endDate: e.target.value })
                   }
                   required
-                  className=" dark:text-white text-black [color-scheme:auto] dark:[&::-webkit-calendar-picker-indicator]:invert"
+                  min={formData.startDate || new Date().toISOString().split('T')[0]}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason</Label>
-              <Input
+              <Label htmlFor="reason">Reason *</Label>
+              <Textarea
                 id="reason"
                 value={formData.reason}
                 onChange={(e) =>
                   setFormData({ ...formData, reason: e.target.value })
                 }
                 required
+                placeholder="Enter the reason for your leave"
               />
             </div>
 
@@ -284,13 +376,75 @@ const Leaves = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => {
+                  setIsDialogOpen(false);
+                  resetForm();
+                }}
               >
                 Cancel
               </Button>
               <Button type="submit">Submit</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Update Dialog */}
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Leave Status</DialogTitle>
+            <DialogDescription>
+              Updating status for {selectedLeave?.employeeName}'s leave request
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={statusForm.status}
+                onValueChange={(value) =>
+                  setStatusForm({ ...statusForm, status: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Approved">Approved</SelectItem>
+                  <SelectItem value="Rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="comments">Comments</Label>
+              <Textarea
+                id="comments"
+                value={statusForm.comments}
+                onChange={(e) =>
+                  setStatusForm({ ...statusForm, comments: e.target.value })
+                }
+                placeholder="Optional comments for the employee"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsStatusDialogOpen(false);
+                  resetStatusForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleStatusUpdate}>
+                Update Status
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
