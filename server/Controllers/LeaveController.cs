@@ -116,7 +116,7 @@ namespace server.Controllers
             {
                 return BadRequest("User not found.");
             }
-            Console.WriteLine("your leave is **********************\n");
+            //Console.WriteLine("your leave is **********************\n");
             var leave = new Leave
             {
                 UserId = user.Id,
@@ -128,7 +128,7 @@ namespace server.Controllers
                 AppliedOn = DateTime.UtcNow,
                 EmployeeId = createLeaveDto.EmployeeId
             };
-            Console.WriteLine("your leave is **********************\n"+leave);
+            //Console.WriteLine("your leave is **********************\n"+leave);
             await _leaveRepository.AddAsync(leave);
             await _leaveRepository.SaveChangeAsync();
 
